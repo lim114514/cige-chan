@@ -120,6 +120,13 @@ main{max-width:1080px;margin:0 auto;padding:26px 20px 160px}
 .tools{flex:none;display:flex;gap:3px;opacity:0;transition:.15s}
 .row:hover .tools,.row:focus-within .tools{opacity:1}
 .tools button{padding:1px 7px;font-size:12px;min-width:26px}
+@media (pointer:coarse){
+  /* 触屏没有"悬停"，这排按钮平时用不上却仍占着一整排的宽度，
+     会把词格输入框的实际可点区域挤到只剩第一格那么宽。
+     改成：不聚焦这一行时完全脱离布局，聚焦时另起一行显示，不再跟词格抢横向空间。 */
+  .tools{display:none;flex-basis:100%;justify-content:flex-end;opacity:1}
+  .row.active .tools{display:flex}
+}
 .addline{margin:6px 0 0 34px;font-size:11px;padding:2px 9px;color:var(--dim);border-style:dashed}
 
 footer{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--line);padding:8px 18px;font-size:12px;color:var(--dim);display:flex;gap:18px;align-items:center;flex-wrap:wrap;z-index:20}
