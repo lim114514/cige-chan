@@ -90,7 +90,8 @@ main{max-width:1080px;margin:0 auto;padding:26px 20px 160px}
 .ovf{color:var(--ovf);font-size:calc(var(--cell)*.55);letter-spacing:2px;border-bottom:2px wavy var(--ovf);border-bottom-style:dashed;align-self:center}
 
 .io{position:absolute;inset:0;width:100%;height:100%;background:transparent;border:none;outline:none;color:transparent;caret-color:transparent;
-  font-size:calc(var(--cell)*.62);letter-spacing:calc(var(--cell) + var(--gap) - var(--cell)*.62);padding-left:calc(var(--cell)*.19);z-index:2}
+  font-size:calc(var(--cell)*.62);letter-spacing:calc(var(--cell) + var(--gap) - var(--cell)*.62);padding-left:calc(var(--cell)*.19);z-index:2;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 .io::selection{background:var(--accent-soft)}
 .comp{position:absolute;top:calc(100% - 2px);z-index:5;background:var(--accent);color:var(--bg);font-size:13px;padding:1px 7px;border-radius:5px;white-space:nowrap;display:none}
 
@@ -557,10 +558,24 @@ function rowEl(sec,si,L,li){
     R.classList.remove("active"); R.querySelectorAll(".cell").forEach(c=>c.classList.remove("caret","end")); R.querySelectorAll(".grp").forEach(g=>g.classList.remove("cur")); });
   io.addEventListener("keyup",()=>mark(io.selectionStart));
   io.addEventListener("click",e=>{
+    // 点/触摸格子内任意位置都定位到这一格本身（不再按左右半格判断"上一格/下一格"，
+    // 半格判断在鼠标下没问题，但在触摸屏上误差大，容易点右半边却跳到下一格）。
+    // 词格很长时会自动换行成好几排，这里必须先按纵向（行）匹配，行内再比横向距离，
+    // 否则手机上点第二排的格子，很容易被判定成第一排里横坐标凑巧接近的格子——
+    // 表现出来就是"点了没反应"或者"点哪个格子都定位到别的格子"。
     const cells = [...R.querySelectorAll(".cell")];
-    let best = cells.length, bd = 1e9;
-    cells.forEach((c,i)=>{ const r=c.getBoundingClientRect(); const d=Math.abs(e.clientX-(r.left+r.width/2));
-      if(d<bd){ bd=d; best = e.clientX < r.left+r.width/2 ? i : i+1; } });
+    if(!cells.length){ setTimeout(()=>{ seek(0); },0); return; }
+    let best = 0, bd = Infinity, bestRect = null;
+    cells.forEach((c,i)=>{
+      const r = c.getBoundingClientRect();
+      const dy = e.clientY < r.top ? r.top - e.clientY : e.clientY > r.bottom ? e.clientY - r.bottom : 0;
+      const dx = e.clientX < r.left ? r.left - e.clientX : e.clientX > r.right ? e.clientX - r.right : 0;
+      const d = dy*1000 + dx;   // 纵向权重拉满：先锁定是哪一行，行内再比水平距离
+      if(d < bd){ bd = d; best = i; bestRect = r; }
+    });
+    // 点在最后一格右边界之外（整句末尾的空白处）不触发定位，交互上更符合预期：
+    // 词格填满了就是填满了，末尾空白不该还能把光标甩过去。
+    if(best === cells.length-1 && e.clientX > bestRect.right) return;
     setTimeout(()=>{ seek(best); },0);
   });
 
