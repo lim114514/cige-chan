@@ -1,4 +1,4 @@
-name: 构建三平台安装包
+name: 构建三平台免安装包
 
 on:
   push:
@@ -6,22 +6,27 @@ on:
       - 'v*'
   workflow_dispatch:        # 也可以在 Actions 页面手动点一下就构建
 
+env:
+  APP_NAME: cige-chan       # 对应 tauri.conf.json 里的 mainBinaryName
+
 jobs:
   build:
-    permissions:
-      contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: macos-latest        # Apple Silicon
-            args: '--target aarch64-apple-darwin'
+            args: '--target aarch64-apple-darwin --bundles app'
+            label: macos-arm64
           - platform: macos-latest        # Intel Mac
-            args: '--target x86_64-apple-darwin'
+            args: '--target x86_64-apple-darwin --bundles app'
+            label: macos-intel
           - platform: ubuntu-22.04
-            args: ''
+            args: '--bundles appimage'
+            label: linux-x86_64
           - platform: windows-latest
-            args: ''
+            args: '--no-bundle'
+            label: windows-x86_64
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -54,22 +59,72 @@ jobs:
         with:
           node-version: 20
 
-      - name: 安装 Tauri CLI
+      - name: 安装依赖
         run: npm install
 
-      - name: 构建并发布
+      # 注意：这里不传 tagName / releaseName，tauri-action 就只构建、不发布
+      - name: 构建
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: '词格酱 ${{ github.ref_name }}'
-          releaseBody: |
-            下载对应平台的安装包。这些包没有做付费签名，首次打开时系统会拦一下：
-
-            - **Windows**：点「更多信息」→「仍要运行」
-            - **macOS**：右键点应用 →「打开」→ 再点弹窗里的「打开」（只需做一次）
-            - **Linux**：AppImage 记得 `chmod +x` 后运行，或直接装 .deb
-          releaseDraft: true
-          prerelease: false
           args: ${{ matrix.args }}
+
+      - name: 收集产物（Windows：原始 exe）
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        run: |
+          mkdir -p dist
+          exe=$(ls src-tauri/target/release/*.exe | head -n 1)
+          cp "$exe" "dist/${APP_NAME}-${{ matrix.label }}.exe"
+
+      - name: 收集产物（Linux：AppImage）
+        if: matrix.platform == 'ubuntu-22.04'
+        shell: bash
+        run: |
+          mkdir -p dist
+          img=$(ls src-tauri/target/release/bundle/appimage/*.AppImage | head -n 1)
+          cp "$img" "dist/${APP_NAME}-${{ matrix.label }}.AppImage"
+
+      - name: 收集产物（macOS：.app 打包成 zip）
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        run: |
+          mkdir -p dist
+          app=$(ls -d src-tauri/target/*/release/bundle/macos/*.app | head -n 1)
+          ditto -c -k --sequesterRsrc --keepParent "$app" "dist/${APP_NAME}-${{ matrix.label }}.zip"
+
+      - name: 上传中间产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.label }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 下载全部产物
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: '词格酱 ${{ github.ref_name }}'
+          draft: true
+          prerelease: false
+          files: dist/*
+          body: |
+            下载后直接运行，无需安装。这些包没有做付费签名，首次打开时系统会拦一下：
+
+            - **Windows**：下载 `.exe` 双击即可（系统需自带 WebView2，Win10 1803+ / Win11 默认都有）。SmartScreen 弹窗点「更多信息」→「仍要运行」
+            - **macOS**：下载 `.zip`，解压得到 `.app`，右键点它 →「打开」→ 再点弹窗里的「打开」（只需做一次）
+            - **Linux**：`chmod +x *.AppImage` 后直接运行
