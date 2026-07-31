@@ -9,3 +9,6 @@ package-lock.json
 # 系统
 .DS_Store
 Thumbs.db
+
+src-tauri/gen/android/keystore.properties
+*.jks
