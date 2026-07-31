@@ -535,8 +535,16 @@ function rowEl(sec,si,L,li){
   function onInput(){
     const pos0 = io.selectionStart;
     // 全角空格、制表符统一成半角空格；空格保留，代表「这个格子先空着」
-    const clean = io.value.replace(/[\t\n\r　]/g," ");
-    if(clean !== io.value){ io.value = clean; try{ io.setSelectionRange(pos0,pos0); }catch(e){} }
+    let clean = io.value.replace(/[\t\n\r　]/g," ");
+    // 词格是几格就最多容纳几个字，多打/多粘贴的字直接截掉，不再允许溢出；
+    // 想装下更多字，请先用 ＋ 或改词格数字把格子加够。
+    const C = cap(L), chars = [...clean];
+    if(chars.length > C){ clean = chars.slice(0,C).join(""); toast("已到词格上限，多出的字被截掉了"); }
+    if(clean !== io.value){
+      io.value = clean;
+      const p = Math.min(pos0, clean.length);
+      try{ io.setSelectionRange(p,p); }catch(e){}
+    }
     L.t = clean;
     paint(R,L); buildVers(); mark(io.selectionStart); stats(); save();
   }
