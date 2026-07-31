@@ -1,0 +1,11 @@
+# Rust
+/src-tauri/target/
+/src-tauri/gen/
+
+# Node
+node_modules/
+package-lock.json
+
+# 系统
+.DS_Store
+Thumbs.db

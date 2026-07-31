@@ -1,0 +1,15 @@
+[竖线]
+XXXX|XXX
+XXX|XXXX
+
+[全角竖线]
+XXXX｜XXX
+
+[斜杠]
+XXXX/XXX
+
+[全角斜杠]
+XXXX／XXX
+
+[全角空格]
+XXXX　XXX

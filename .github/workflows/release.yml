@@ -1,0 +1,75 @@
+name: 构建三平台安装包
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:        # 也可以在 Actions 页面手动点一下就构建
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest        # Apple Silicon
+            args: '--target aarch64-apple-darwin'
+          - platform: macos-latest        # Intel Mac
+            args: '--target x86_64-apple-darwin'
+          - platform: ubuntu-22.04
+            args: ''
+          - platform: windows-latest
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Linux 依赖
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            build-essential \
+            curl wget file libxdo-dev libssl-dev
+
+      - name: 安装 Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: 缓存 Rust 依赖
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 安装 Tauri CLI
+        run: npm install
+
+      - name: 构建并发布
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: '词格酱 ${{ github.ref_name }}'
+          releaseBody: |
+            下载对应平台的安装包。这些包没有做付费签名，首次打开时系统会拦一下：
+
+            - **Windows**：点「更多信息」→「仍要运行」
+            - **macOS**：右键点应用 →「打开」→ 再点弹窗里的「打开」（只需做一次）
+            - **Linux**：AppImage 记得 `chmod +x` 后运行，或直接装 .deb
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

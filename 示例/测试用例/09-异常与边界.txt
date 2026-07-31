@@ -1,0 +1,28 @@
+[空段落测试]
+
+[只有一格]
+X
+
+[超长一句]
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+[很多小分句]
+X X X X X X X
+
+[前后有多余空格]
+   XXXX XXX   
+	XXX XXXX	
+
+[连续多个空行]
+
+
+
+[中英混排]
+XXXX ABC XXX
+
+[数字混在歌词里]
+2024年的风 吹过窗
+
+[单个字的段落名]
+[A]
+XXX
