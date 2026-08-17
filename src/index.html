@@ -534,6 +534,7 @@ zh: {
 
   confirmDeleteSec: name => `删除段落「${name}」？`,
   confirmNew: "新建会清空当前内容，继续？",
+  confirmMidiNoKs: n => `这份 MIDI 里没有 keyswitch 分段标记（C0 分句／C#0 换句／D0 换段），${n} 个音符会全部挤进一句，导入后需要自己动手分句、分段。确定导入吗？`,
 
   secUp: "上移段落", secDown: "下移段落", secDup: "复制段落",
   secAdd: "＋段", secAddTitle: "在下方新建段落", secDel: "删除段落",
@@ -698,6 +699,7 @@ zhHant: {
 
   confirmDeleteSec: name => `刪除段落「${name}」？`,
   confirmNew: "新建會清空當前內容，繼續？",
+  confirmMidiNoKs: n => `這份 MIDI 裡沒有 keyswitch 分段標記（C0 分句／C#0 換句／D0 換段），${n} 個音符會全部擠進一句，匯入後需要自己動手分句、分段。確定匯入嗎？`,
 
   secUp: "上移段落", secDown: "下移段落", secDup: "複製段落",
   secAdd: "＋段", secAddTitle: "在下方新建段落", secDel: "刪除段落",
@@ -862,6 +864,7 @@ ja: {
 
   confirmDeleteSec: name => `セクション「${name}」を削除しますか？`,
   confirmNew: "新規作成すると現在の内容が消去されます。続けますか？",
+  confirmMidiNoKs: n => `この MIDI には keyswitch の区切り（C0 フレーズ区切り／C#0 改行／D0 セクション切り替え）がありません。${n} 個の音符がすべて 1 行に入るため、インポートしたあとご自分でフレーズと行を分ける必要があります。インポートしますか？`,
 
   secUp: "セクションを上へ", secDown: "セクションを下へ", secDup: "セクションを複製",
   secAdd: "＋セクション", secAddTitle: "下に新しいセクションを追加", secDel: "セクションを削除",
@@ -1026,6 +1029,7 @@ ko: {
 
   confirmDeleteSec: name => `섹션 「${name}」을(를) 삭제할까요?`,
   confirmNew: "새로 만들면 현재 내용이 지워집니다. 계속할까요?",
+  confirmMidiNoKs: n => `이 MIDI에는 keyswitch 구간 표시(C0 소절 구분／C#0 줄 바꿈／D0 섹션 전환)가 없습니다. 음표 ${n}개가 모두 한 줄에 들어가므로, 가져온 뒤 직접 소절과 줄을 나누어야 합니다. 가져올까요?`,
 
   secUp: "섹션 위로", secDown: "섹션 아래로", secDup: "섹션 복제",
   secAdd: "＋섹션", secAddTitle: "아래에 새 섹션 추가", secDel: "섹션 삭제",
@@ -1871,6 +1875,9 @@ function applyMidi(buf){
     secs = midiNotesToSections(notes);
   }catch(e){ toast(t("toastMidiParseFail", e.message)); return; }
   if(!secs.length){ toast(t("toastMidiNoStructure")); return; }
+  /* 整份文件一个 keyswitch 都没有：所有音符会挤成一句，导进来还得自己一句句
+     切开。先把话说清楚再让人决定，免得白导一次、还把当前内容顶掉。 */
+  if(!notes.some(n => MIDI_KS[n.note]) && !confirm(t("confirmMidiNoKs", notes.length))) return;
   midiImport = {parsed, notes};
   state.sections = secs; normAll(); focusRef = null; render();
   toast(t("toastMidiImported", secs.length, secs.reduce((a,s)=>a+s.lines.length,0)));
